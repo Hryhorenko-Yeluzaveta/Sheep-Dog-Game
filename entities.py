@@ -111,6 +111,7 @@ class Sheep(Mover):
         self.lost = False
         self.wander = Vector2()
         self.wander_t = random.uniform(0, 2)
+        self.scare_t = 0.0
 
     def _wander_dir(self, dt):
         self.wander_t -= dt
@@ -169,12 +170,20 @@ class Sheep(Mover):
                 flee_wolf += (self.pos - wolf.pos) / dw * min(3.0, C.R_WOLF / dw)
                 panic = True
 
+        self.scare_t = max(0.0, self.scare_t - dt)
+        if self.scare_t > 0 and dog:
+            dd = self.pos.distance_to(dog.pos)
+            if dd > 1e-5:
+                flee_dog += (self.pos - dog.pos) / dd * 3.0
+            panic = True
+
         acc = (C.W_SEP * sep + C.W_ALI * ali + C.W_COH * coh +
                C.W_DOG * flee_dog + C.W_WOLF * flee_wolf + C.W_OBS * self._avoid(tilemap))
         if not panic:
             acc += self._wander_dir(dt) * 0.6
 
-        max_speed = C.SHEEP_SPEED * (C.PANIC_MULT if panic else 0.6)
+        boost = 1.6 if self.scare_t > 0 else 1.0
+        max_speed = C.SHEEP_SPEED * (C.PANIC_MULT if panic else 0.6) * boost
         desired = _norm(acc) * max_speed
         self.vel += (desired - self.vel) * min(1.0, 6 * dt)
         self.vel = _clamp(self.vel, max_speed)
